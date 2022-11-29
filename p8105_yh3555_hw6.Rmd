@@ -23,6 +23,7 @@ homicide = read.csv("./data./homicide-data.csv")
 Date cleaning
 ```{r}
 homicide = homicide %>%
+  select(-uid, -reported_date, -victim_last, -victim_first, -lat, -lon)%>%
   mutate(city_state = str_c(city, ",", state)) %>%
   mutate(city_state = as.factor(city_state)) %>%
   mutate(victim_age = as.numeric(victim_age)) %>%
@@ -33,6 +34,20 @@ homicide = homicide %>%
 homicide
 ```
 If the case was closed by arrested, which was solved, it would be labelled as 1. If Open/No arrest or Closed without arrest, it would be labelled as 0. 
+
+For Baltimore,MD
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
 
 
 
