@@ -1,0 +1,38 @@
+---
+title: "p8105_yh3555_hw6"
+author: "Yuchen Hua"
+date: "2022-11-28"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(modelr)
+library(mgcv)
+library(readr)
+set.seed(1)
+```
+
+
+## Problem 2
+Import data
+```{r}
+homicide = read.csv("./data./homicide-data.csv")
+```
+
+Date cleaning
+```{r}
+homicide = homicide %>%
+  mutate(city_state = str_c(city, ",", state)) %>%
+  mutate(city_state = as.factor(city_state)) %>%
+  mutate(victim_age = as.numeric(victim_age)) %>%
+  group_by(city_state, disposition) %>% 
+  filter(!city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL")) %>%
+  filter(victim_race %in% c("Black", "White")) %>%
+  mutate(status = ifelse(disposition %in% c("Closed by arrest"), 1, 0))
+homicide
+```
+If the case was closed by arrested, which was solved, it would be labelled as 1. If Open/No arrest or Closed without arrest, it would be labelled as 0. 
+
+
+
