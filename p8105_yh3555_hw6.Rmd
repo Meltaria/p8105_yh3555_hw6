@@ -30,19 +30,27 @@ homicide = homicide %>%
   group_by(city_state, disposition) %>% 
   filter(!city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL")) %>%
   filter(victim_race %in% c("Black", "White")) %>%
-  mutate(status = ifelse(disposition %in% c("Closed by arrest"), 1, 0))
+  mutate(resolved = ifelse(disposition %in% c("Closed by arrest"), 1, 0))
 homicide
 ```
 If the case was closed by arrested, which was solved, it would be labelled as 1. If Open/No arrest or Closed without arrest, it would be labelled as 0. 
 
 For Baltimore,MD
 ```{r}
-
+baltimore_fit = homicide %>%
+  filter(city_state %in% c("Baltimore,MD")) %>%
+  glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial())
+baltimore_fit
+baltimore_tidy = broom::tidy(baltimore_fit)
 ```
 
-
-
-
+```{r}
+CI_baltimore = baltimore_fit %>%
+  confint(level = 0.95)
+OR_baltimore = baltimore_tidy %>%
+  mutate(OR = exp(estimate)) %>%
+  select(term, OR)
+```
 
 
 
