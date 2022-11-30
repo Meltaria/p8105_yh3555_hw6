@@ -52,8 +52,11 @@ OR_baltimore = baltimore_tidy %>%
   select(term, OR)
 ```
 
-
-
+## Problem 3
+Import data
+```{r}
+bw = read.csv("./data/birthweight.csv")
+```
 
 
 
