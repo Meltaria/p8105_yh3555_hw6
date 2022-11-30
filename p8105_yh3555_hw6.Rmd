@@ -45,29 +45,39 @@ baltimore_fit = homicide_clean %>%
 baltimore_fit
 baltimore_tidy = broom::tidy(baltimore_fit)
 ```
-
+The OR and CI of baltimore can be obtained. 
 ```{r}
-CI_baltimore = baltimore_fit %>%
-  confint(level = 0.95)
-OR_baltimore = baltimore_tidy %>%
-  mutate(OR = exp(estimate)) %>%
-  select(term, OR)
+baltimore_tidy %>%
+  mutate(OR = exp(estimate),
+         ci_lower = estimate + 1.96*std.error,
+         ci_upper = estimate - 1.96*std.error) %>%
+  select(term, log_OR = estimate, OR, p.value, ci_lower, ci_upper) %>%
+  knitr::kable(digits = 3)
 ```
+
+
 For all cities
 ```{r}
-cities_fit = homicide_clean %>%
+nest_city = homicide_clean %>%
   nest(data = -city_state) %>%
   mutate(
     models = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data= ., family = binomial())),
-    results = map(models, broom::tidy)
-  ) %>%
+    results = map(models, broom::tidy)) %>%
   select(-data, -models) %>%
   unnest(results) %>%
-  filter(!term %in% c("(Intercept)"))
-cities_fit
-
+  filter(term != "(Intercept)") %>%
+  select(city_state, term, estimate, std.error)
 ```
 
+OR an CI
+```{r}
+nest_city %>%
+   mutate(OR = exp(estimate),
+         ci_lower = estimate + 1.96*std.error,
+         ci_upper = estimate - 1.96*std.error) %>%
+  select(term, log_OR = estimate, OR, ci_lower, ci_upper) %>%
+  knitr::kable(digits = 3)
+```
 
 
 ## Problem 3
