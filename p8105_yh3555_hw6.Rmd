@@ -22,22 +22,24 @@ homicide = read.csv("./data./homicide-data.csv")
 
 Date cleaning
 ```{r}
-homicide = homicide %>%
-  select(-uid, -reported_date, -victim_last, -victim_first, -lat, -lon)%>%
+homicide_clean = homicide %>%
   mutate(city_state = str_c(city, ",", state)) %>%
   mutate(city_state = as.factor(city_state)) %>%
   mutate(victim_age = as.numeric(victim_age)) %>%
   group_by(city_state, disposition) %>% 
-  filter(!city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL")) %>%
+  filter(!city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL"),
+         !victim_age %in% c(NA),
+         !victim_sex %in% c("Unknown")) %>%
   filter(victim_race %in% c("Black", "White")) %>%
-  mutate(resolved = ifelse(disposition %in% c("Closed by arrest"), 1, 0))
-homicide
+  mutate(resolved = ifelse(disposition %in% c("Closed by arrest"), 1, 0)) %>%
+  select(-uid, -reported_date, -victim_last, -victim_first, -lat, -lon)
+homicide_clean
 ```
 If the case was closed by arrested, which was solved, it would be labelled as 1. If Open/No arrest or Closed without arrest, it would be labelled as 0. 
 
 For Baltimore,MD
 ```{r}
-baltimore_fit = homicide %>%
+baltimore_fit = homicide_clean %>%
   filter(city_state %in% c("Baltimore,MD")) %>%
   glm(resolved ~ victim_age + victim_race + victim_sex, data = ., family = binomial())
 baltimore_fit
@@ -51,6 +53,22 @@ OR_baltimore = baltimore_tidy %>%
   mutate(OR = exp(estimate)) %>%
   select(term, OR)
 ```
+For all cities
+```{r}
+cities_fit = homicide_clean %>%
+  nest(data = -city_state) %>%
+  mutate(
+    models = map(data, ~glm(resolved ~ victim_age + victim_race + victim_sex, data= ., family = binomial())),
+    results = map(models, broom::tidy)
+  ) %>%
+  select(-data, -models) %>%
+  unnest(results) %>%
+  filter(!term %in% c("(Intercept)"))
+cities_fit
+
+```
+
+
 
 ## Problem 3
 Import data
