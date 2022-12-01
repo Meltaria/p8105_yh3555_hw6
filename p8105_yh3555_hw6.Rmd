@@ -87,6 +87,7 @@ building plot
 city_data %>% 
   ggplot(aes(x = city_state, y = OR)) +
   geom_point() +
+  geom_errorbar(aes(ymin = ci_lower, ymax= ci_upper)) +
   facet_wrap(~term) + 
   theme(axis.text.x = element_text(angle = 80, hjust = 1))
 
@@ -95,17 +96,7 @@ city_data %>%
 
 
 ## Problem 3
-Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
-Compare your model to two others:
-
-    One using length at birth and gestational age as predictors (main effects only)
-    One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
-
-Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
-
-Note that although we expect your model to be reasonable, model building itself is not a main idea of the course and we don’t necessarily expect your model to be “optimal”
-Import data
 ```{r}
 bw = read.csv("./data/birthweight.csv")
 ```
@@ -116,17 +107,26 @@ bw_tidy = bw %>%
   select(bwt, momage) %>%
   filter(!bwt %in% c(NA),
          !momage %in% c(NA))
+bw_tidy %>%
+  ggplot(aes(x = momage, y = bwt))+
+  geom_point()
 ```
 
-build linear model
+
 ```{r}
-linear_mod1 = lm(bwt ~ momage, data = bw_tidy)
+mod_lm = lm(bwt ~ momage, data = bw_tidy)
+mod_smooth = mgcv::gam(bwt ~ s(momage), data = bw_tidy)
+mod_wiggly = mgcv::gam(bwt ~ s(momage, k = 30), sp = 10e-6, data = bw_tidy)
 ```
 Build plot 
 ```{r}
 bw_tidy %>%
-  add_predictions(linear_mod1) %>%
-  ggplot(aes(x = momage, y =bwt)) + geom_point(alpha = .5) + geom_line(aes(y=pred), color = "red") 
+  gather_predictions(mod_lm, mod_smooth, mod_wiggly) %>%
+  mutate(model = fct_inorder(model)) %>%
+  ggplot(aes(x = momage, y = bwt)) +
+  geom_point() +
+  geom_line(aes( y =pred), color = "red") +
+  facet_wrap(~model)
 ```
 
 
