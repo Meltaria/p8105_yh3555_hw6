@@ -71,7 +71,7 @@ nest_city = homicide_clean %>%
 
 OR an CI
 ```{r}
-nest_city %>%
+city_data = nest_city %>%
    mutate(OR = exp(estimate),
          ci_lower = estimate + 1.96*std.error,
          ci_upper = estimate - 1.96*std.error) %>%
@@ -80,10 +80,8 @@ nest_city %>%
 ```
 
 
+
 ## Problem 3
-
-Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
-
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
 Compare your model to two others:
@@ -98,6 +96,52 @@ Import data
 ```{r}
 bw = read.csv("./data/birthweight.csv")
 ```
+Let's hypothesize that the birthweight may have linear regression model with mother's mother's age at delivery. 
+Let's clean the data
+```{r}
+bw_tidy = bw %>%
+  select(bwt, momage) %>%
+  filter(!bwt %in% c(NA),
+         !momage %in% c(NA))
+```
+
+build linear model
+```{r}
+linear_mod1 = lm(bwt ~ momage, data = bw_tidy)
+```
+Build plot 
+```{r}
+bw_tidy %>%
+  add_predictions(linear_mod1) %>%
+  ggplot(aes(x = momage, y =bwt)) + geom_point(alpha = .5) + geom_line(aes(y=pred), color = "red") 
+```
+
+
+Let's build the other two models
+```{r}
+model2 = bw %>%
+  select(bwt, blength, gaweeks) %>%
+  filter(!bwt %in% c(NA),
+         !blength %in% c(NA),
+         !gaweeks %in% c(NA))
+linear_model2 = lm(bwt ~ blength + gaweeks, data = model2)
+```
+
+```{r}
+model3 = bw %>%
+  select(bwt, bhead, blength, babysex) %>%
+  filter(!bwt %in% c(NA),
+         !bhead%in% c(NA),
+         !blength%in% c(NA),
+         !babysex %in% c(NA))
+linear_model3 = lm(bwt ~ bhead + blength + babysex, data = model3)
+```
+
+
+
+
+
+
 
 
 
