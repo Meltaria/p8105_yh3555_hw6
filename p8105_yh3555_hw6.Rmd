@@ -16,8 +16,8 @@ library(viridis)
 set.seed(1)
 ```
 
-## Problem 1 
-To download the data
+## Problem 1 ##
+To download the data. 
 ```{r}
 weather_df = 
   rnoaa::meteo_pull_monitors(
@@ -32,6 +32,7 @@ weather_df =
   select(name, id, everything())
 ```
 
+"modelr::bootstrap" was used to draw the samples and "broom::Glance" was used to produce "r.squared" values. 
 ```{r}
 weather_df %>% 
   modelr::bootstrap(n = 1000) %>% 
@@ -43,6 +44,9 @@ weather_df %>%
   ggplot(aes(x = r.squared)) + geom_density()
 ```
 
+From the example, we may find that the r-squared value is high, and the upper bound at 1 may cause the generally skewed shape of the distribution. 
+In order to construct a CI for r-squared, the 2.5% and 97.5% quantiles of the estimates would be taken. 
+A distribution for log(beta0 * beta1) was also produced. 
 ```{r}
 weather_df %>% 
   modelr::bootstrap(n = 1000) %>% 
@@ -59,10 +63,10 @@ weather_df %>%
   mutate(log_b0b1 = log(beta0 * beta1)) %>% 
   ggplot(aes(x = log_b0b1)) + geom_density()
 ```
+The distribution is skewed and has some outliers. 
 
 
-
-## Problem 2
+## Problem 2 ##
 Import data
 ```{r}
 homicide = read.csv("./data./homicide-data.csv")
@@ -83,9 +87,13 @@ homicide_clean = homicide %>%
   select(-uid, -reported_date, -victim_last, -victim_first, -lat, -lon)
 homicide_clean
 ```
+The imported data was cleaned. City and state was joined into a new variable "city_state" via str_c(). City_state was factorized and victim_age was numerized. 
+City_state "Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL" were excluded. The victim race only include Black and White. 
 If the case was closed by arrested, which was solved, it would be labelled as 1. If Open/No arrest or Closed without arrest, it would be labelled as 0. 
+Finnaly, some unnecessary variables were excluded. 
 
-For Baltimore,MD
+For Baltimore,MD,
+The data of Baltimore,MD was filered and the glm was built based on the resolved vs victim_age and victim_sex. Broom::tidy was used for better reading. 
 ```{r}
 baltimore_fit = homicide_clean %>%
   filter(city_state %in% c("Baltimore,MD")) %>%
@@ -93,7 +101,10 @@ baltimore_fit = homicide_clean %>%
 baltimore_fit
 baltimore_tidy = broom::tidy(baltimore_fit)
 ```
+
+From the tidied binary outcome, was can obtained the OR via its estimate. 
 The OR and CI of baltimore can be obtained. 
+Kinitr::kable was used for a cleared view. 
 ```{r}
 baltimore_tidy %>%
   mutate(OR = exp(estimate),
@@ -106,6 +117,7 @@ baltimore_tidy %>%
 
 
 For all cities
+Let's repeat the smiliar procedure but utilize map to apply the model building for all the city_state data and unnest the result in the end. Victim_sexMale was chosen via filter as the OR and CI comparing male victims to female victims was required. 
 ```{r}
 nest_city = homicide_clean %>%
   nest(data = -city_state) %>%
@@ -119,7 +131,7 @@ nest_city = homicide_clean %>%
   select(city_state, term, estimate, std.error)
 ```
 
-OR an CI
+Similar procedure was done to obtained OR and CI range. 
 ```{r}
 city_data = nest_city %>%
    mutate(OR = exp(estimate),
@@ -128,7 +140,7 @@ city_data = nest_city %>%
   select(term, log_OR = estimate, OR, ci_lower, ci_upper)
 ```
 
-building plot
+Plot was built based on the city data via ggplot. Error bars were created via geom_error bar. 
 ```{r}
 city_data %>% 
   mutate(city_state = fct_reorder(city_state, OR)) %>%
@@ -141,7 +153,7 @@ city_data %>%
 
 
 
-## Problem 3
+## Problem 3 ##
 
 Import data
 ```{r}
@@ -149,7 +161,7 @@ bw = read.csv("./data/birthweight.csv")
 ```
 
 
-Let's eradicate all the missing values in the dataset. 
+Let's eradicate all the missing values in the dataset. All numeric variable's missing data were excluded while the descriptive variables were converted into factors.    
 ```{r}
 bw_tidy = bw %>%
   filter(!bwt %in% c(NA),
@@ -175,7 +187,9 @@ bw_tidy = bw %>%
          id = 1:nrow(bw))
 ```
 
-Let's hypothesize that the birthweight has a linear regression relationship with head circumference, mother's weight at delivery, average number of cigarettes smoked per day during pregancy, weight gained during pregnancy. 
+### Building and check hypothesized model ###
+The babies' birth weight may be related to their head circumstance and closely related to mother's health condition during pregnancy.
+Let's hypothesize that the birthweight has a linear regression relationship with head circumference, mother's weight at delivery, average number of cigarettes smoked per day during pregnancy, weight gained during pregnancy. 
 Let's build models. 
 ```{r}
 mod1_lm = lm(bwt ~ blength + delwt + smoken + wtgain, data = bw_tidy)
@@ -196,7 +210,7 @@ bw_tidy_1 %>%
        x = "Predicted value",
        y = "Residuals")
 ```
-From the plot, we can found that the most of the points are in a type of linearity. There are still some outliers in some extreme predicted values. 
+From the plot, we can found that the most of the points are in a type of linearity. There are still some outliers for some extreme predicted values. 
 
 ### Cross Validation ### 
 Let's build the models of the other two models.
