@@ -12,8 +12,54 @@ library(mgcv)
 library(readr)
 library(ggplot2)
 library(patchwork)
+library(viridis)
 set.seed(1)
 ```
+
+## Problem 1 
+To download the data
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+```{r}
+weather_df %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  ggplot(aes(x = r.squared)) + geom_density()
+```
+
+```{r}
+weather_df %>% 
+  modelr::bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  select(id = `.id`, term, estimate) %>% 
+  pivot_wider(
+    names_from = term, 
+    values_from = estimate) %>% 
+  rename(beta0 = `(Intercept)`, beta1 = tmin) %>% 
+  mutate(log_b0b1 = log(beta0 * beta1)) %>% 
+  ggplot(aes(x = log_b0b1)) + geom_density()
+```
+
 
 
 ## Problem 2
@@ -97,12 +143,13 @@ city_data %>%
 
 ## Problem 3
 
+Import data
 ```{r}
 bw = read.csv("./data/birthweight.csv")
 ```
 
 
-Let's 
+Let's eradicate all the missing values in the dataset. 
 ```{r}
 bw_tidy = bw %>%
   filter(!bwt %in% c(NA),
@@ -134,8 +181,24 @@ Let's build models.
 mod1_lm = lm(bwt ~ blength + delwt + smoken + wtgain, data = bw_tidy)
 summary(mod1_lm)
 ```
+According to the summary of the model, we can find out taht all the p-value of the variables are smaller than 0.05, indicating all these variables have a significant association with the birth weight. The adjusted R-squared is 0.5723, explaining 57,23% of the variability in birthweight. 
 
+Let's check the model fit and and the assumption via plotting residuals and fitted values. Add_residuals and add_prediction would be used in the this. 
+```{r}
+bw_tidy_1 = bw_tidy %>%
+  modelr::add_residuals(mod1_lm) %>%
+  modelr::add_predictions(mod1_lm)
 
+bw_tidy_1 %>%
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point(alpha = .5, color = "blue") +
+  labs(title = "Residuals vs Predicted",
+       x = "Predicted value",
+       y = "Residuals")
+```
+From the plot, we can found that the most of the points are in a type of linearity. There are still some outliers in some extreme predicted values. 
+
+### Cross Validation ### 
 Let's build the models of the other two models.
 ```{r}
 mod2_lm = lm(bwt ~ blength + gaweeks, data = bw_tidy)
@@ -147,9 +210,39 @@ mod3_lm = lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + b
 summary(mod3_lm)
 ```
 
+Let's compare our models with the other two given models via corss-validation to assess prediction accuracy. 
+```{r}
+cv_mods = crossv_mc(bw_tidy_1, 1000) %>%
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
 
+cv_mods_1 = cv_mods %>%
+  mutate(
+    mod1_lm = map(train, ~lm(bwt ~ blength + delwt + smoken + wtgain, data = .x)),
+    mod2_lm = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    mod3_lm = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex, data = .x))
+  ) %>%
+  mutate(
+    rmse_1 = map2_dbl(mod1_lm, test, ~rmse(model = .x, data = .y)),
+    rmse_2 = map2_dbl(mod2_lm, test, ~rmse(model = .x, data = .y)),
+    rmse_3 = map2_dbl(mod3_lm, test, ~rmse(model = .x, data = .y))
+  )
+```
 
+We have got the cross_validation of there three models, and also got the RMSE values too. Thus, we may plot the distribution of RMSE values to check all these 3 models. 
+```{r}
+cv_mods_1 %>%
+  select(starts_with("rmse")) %>%
+  pivot_longer(
+    everything(),
+    names_to = "model", values_to ="rmse", names_prefix = "rmse_") %>%
+  ggplot(aes(x = model, y = rmse)) + geom_violin() + 
+  labs(title = "RMSE of three models",
+       x = "Models",
+       y = "RMSE")
+```
 
+For the plots shown, the model 3 seems to be most prediction accurate with smallest RMSE. Thus model 3 with head circumference, length, sex and all three interactions can be the most optimal one.  
 
 
 
